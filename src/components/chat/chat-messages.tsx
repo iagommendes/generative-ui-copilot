@@ -11,7 +11,7 @@ import type { AI } from "@/lib/ai/actions";
 
 const SUGGESTIONS = [
   "Mostre o comparativo de vendas",
-  "Vendas do trimestre",
+  "Tabela de vendas do trimestre",
   "Clima em Curitiba",
 ] as const;
 

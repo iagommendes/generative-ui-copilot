@@ -24,9 +24,12 @@ export function ChatShell() {
             Generative UI Copilot
           </span>
         </div>
-        <span className="rounded-md border border-border/70 px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
-          MVP
-        </span>
+        <a
+          href="/simulate"
+          className="rounded-md border border-border/70 px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider text-muted-foreground transition-colors hover:border-foreground/30 hover:text-foreground"
+        >
+          Simular
+        </a>
       </header>
 
       <ChatMessages />

@@ -2,97 +2,80 @@
 
 Motor de **Generative UI** para agentes de IA: intercepta a intenção do modelo e renderiza componentes React tipados sob demanda (via `streamUI`), em vez de texto puro.
 
+**Demo estática (mock):** [iagommendes.github.io/generative-ui-copilot](https://iagommendes.github.io/generative-ui-copilot/) · detalhes em [docs/GITHUB_PAGES.md](docs/GITHUB_PAGES.md)
+
 ## Decisões arquiteturais
 
 | Decisão | Por quê |
 | --- | --- |
-| **Next.js (App Router) + React**, não Nuxt/Vue | `streamUI` / `@ai-sdk/rsc` e Shadcn UI são maduros em React RSC; tipagem ponta a ponta com Server Actions. |
-| **`createAI` + Server Actions** | Provider único para `AIState` (contexto do LLM) e `UIState` (ReactNodes). Cliente usa `useUIState` / `useActions` com inferência. |
-| **Separação `AIState` ≠ `UIState`** | O modelo só vê mensagens serializáveis; a UI pode streamar componentes sem poluir o prompt. |
-| **`components/generative/`** | Registry dos widgets invocáveis (`BarChart`, `WeatherCard`). Tools do `streamUI` só passam props tipadas. |
-| **`lib/mcp/`** | Fonte de dados externa isolada do shell de chat — tools buscam dados aqui, UI só renderiza. |
-| **TypeScript `strict`** | Contratos estáveis entre tools, props dos componentes e estado do chat. |
+| **Next.js (App Router) + React** | `streamUI` / `@ai-sdk/rsc` e Shadcn são maduros em React RSC. |
+| **`createAI` + Server Actions** | Tipagem ponta a ponta; `AIState` / `UIState` sincronizados. |
+| **`generativeRegistry` + `buildTools`** | Novo widget = entrada no registry, sem tocar no shell do chat. |
+| **Demo Vite → GitHub Pages** | Pages não roda Server Actions; a simulação reutiliza o mesmo registry/mocks. |
+| **`lib/mcp/`** | Dados isolados dos componentes (apresentacionais). |
 
-> Nota: o AI SDK marca `@ai-sdk/rsc` como experimental e sugere AI SDK UI para produção. Mantemos RSC neste MVP porque o requisito é `streamUI`; a pasta `components/chat` isola a fronteira para uma migração futura.
-
-## Estrutura de pastas
+## Estrutura
 
 ```text
 src/
-├── app/                         # Rotas Next.js (RSC)
+├── app/                    # Next.js (+ /simulate)
 ├── components/
-│   ├── chat/                    # Shell, input, messages, provider
-│   ├── generative/              # BarChart, WeatherCard, loading
-│   └── ui/                      # Shadcn
-├── hooks/
-│   └── use-submit-message.tsx   # Envio tipado + optimistic UI
+│   ├── chat/               # ChatShell + SimulationShell
+│   ├── generative/         # BarChart, DataTable, WeatherCard
+│   └── ui/
 ├── lib/
-│   ├── ai/
-│   │   ├── actions.tsx          # createAI + streamUI
-│   │   ├── tools.tsx            # Tools generativas tipadas
-│   │   ├── demo-router.tsx      # Fallback sem API key
-│   │   ├── model.ts             # Resolve OpenAI / Anthropic
-│   │   ├── prompts.ts
-│   │   └── types.ts
-│   └── mcp/                     # Resources mock + client tipado
+│   ├── generative/         # registry, buildTools, resolveSimulation
+│   ├── ai/                 # createAI + streamUI
+│   └── mcp/
+demo/                       # SPA Vite para GitHub Pages
 docs/
-└── ROADMAP.md                   # Próximas etapas
+├── ROADMAP.md
+├── ADDING_A_COMPONENT.md
+└── GITHUB_PAGES.md
 ```
 
 ## Setup
 
 ```bash
-# Dependências (já no package.json após o scaffold)
-npm install
-
-# Variáveis de ambiente
-cp .env.example .env.local
-# Edite OPENAI_API_KEY ou ANTHROPIC_API_KEY
-
-# Dev
-npm run dev
+npm install --legacy-peer-deps
+cp .env.example .env.local   # opcional: OPENAI_API_KEY / ANTHROPIC_API_KEY
+npm run dev                  # http://localhost:3000
 ```
 
-### Comandos usados para iniciar este repositório
+Simulação local (mesmo motor da Pages):
 
 ```bash
-npx create-next-app@latest . --typescript --tailwind --eslint --app --src-dir --import-alias "@/*" --turbopack --yes
-
-npm install ai @ai-sdk/rsc @ai-sdk/openai @ai-sdk/anthropic zod \
-  class-variance-authority clsx tailwind-merge lucide-react \
-  @modelcontextprotocol/sdk
-
-npx shadcn@latest init -d -y
-npx shadcn@latest add button input textarea scroll-area separator avatar card -y
+npm run demo:dev             # http://localhost:5173/generative-ui-copilot/
+# ou no Next: http://localhost:3000/simulate
 ```
 
 ## Estado do MVP
 
 - [x] Scaffold Next.js + Tailwind + Shadcn
-- [x] Provider `createAI` + layout do chat
-- [x] `streamUI` + tools tipadas (`showBarChart`, `showWeather`)
-- [x] Componentes generativos + MCP mock tipado
-- [x] Modo demo sem API key
-- [ ] Cliente MCP real (ver [docs/ROADMAP.md](docs/ROADMAP.md))
-- [ ] Registry genérico de componentes / persistência de sessões
+- [x] Provider `createAI` + chat tipado
+- [x] `streamUI` + tools tipadas
+- [x] Registry genérico + `DataTable`
+- [x] MCP mock + modo demo sem API key
+- [x] Simulação GitHub Pages
+- [ ] Cliente MCP real
+- [ ] Persistência multiturn
 
 ## Roadmap
 
-Próximas etapas (registry, MCP real, persistência, produção): **[docs/ROADMAP.md](docs/ROADMAP.md)**
+[docs/ROADMAP.md](docs/ROADMAP.md) · contribuir com widget: [docs/ADDING_A_COMPONENT.md](docs/ADDING_A_COMPONENT.md)
 
 ## Scripts
 
 | Script | Descrição |
 | --- | --- |
-| `npm run dev` | Servidor de desenvolvimento |
-| `npm run build` | Build de produção |
+| `npm run dev` | App Next completo |
+| `npm run build` | Build Next |
 | `npm run lint` | ESLint |
+| `npm run demo:dev` | Simulação Vite |
+| `npm run demo:build` | Build estático → `demo/dist` |
 
 ## Experimentar
 
-Sem API key (modo demo):
-
-1. `npm run dev`
-2. Clique em **Mostre o comparativo de vendas** ou digite **Clima em Curitiba**
-
-Com modelo real: preencha `OPENAI_API_KEY` ou `ANTHROPIC_API_KEY` em `.env.local`.
+1. Sem API key: `npm run dev` → “Mostre o comparativo de vendas” / “Tabela de vendas do trimestre” / “Clima em Curitiba”
+2. Com modelo: configure `.env.local` — o `streamUI` escolhe a tool no registry
+3. Pelo browser sem clonar: abra a [demo no GitHub Pages](https://iagommendes.github.io/generative-ui-copilot/) (após o primeiro deploy)
