@@ -1,25 +1,15 @@
 "use client";
 
-import { useActions, useUIState } from "@ai-sdk/rsc";
-import { generateId } from "ai";
 import { ArrowUp } from "lucide-react";
-import {
-  type FormEvent,
-  useEffect,
-  useRef,
-  useState,
-  useTransition,
-} from "react";
+import { type FormEvent, useEffect, useRef, useState } from "react";
 
-import type { AI } from "@/lib/ai/actions";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { useSubmitMessage } from "@/hooks/use-submit-message";
 
 export function ChatInput() {
   const [input, setInput] = useState("");
-  const [isPending, startTransition] = useTransition();
-  const [, setMessages] = useUIState<typeof AI>();
-  const { submitUserMessage } = useActions<typeof AI>();
+  const { submit, isPending } = useSubmitMessage();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
@@ -30,24 +20,8 @@ export function ChatInput() {
     event.preventDefault();
     const value = input.trim();
     if (!value || isPending) return;
-
     setInput("");
-
-    const userMessageId = generateId();
-
-    setMessages((current) => [
-      ...current,
-      {
-        id: userMessageId,
-        role: "user",
-        display: <p>{value}</p>,
-      },
-    ]);
-
-    startTransition(async () => {
-      const response = await submitUserMessage(value);
-      setMessages((current) => [...current, response]);
-    });
+    submit(value);
   }
 
   return (
@@ -82,7 +56,7 @@ export function ChatInput() {
         </Button>
       </div>
       <p className="mt-2 px-1 text-center text-[11px] text-muted-foreground">
-        Generative UI · respostas podem incluir componentes tipados
+        Generative UI · tools tipadas via streamUI · MCP mock
       </p>
     </form>
   );
