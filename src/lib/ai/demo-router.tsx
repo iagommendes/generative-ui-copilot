@@ -1,77 +1,34 @@
-import { generateId } from "ai";
-
-import { BarChart } from "@/components/generative/bar-chart";
-import { WeatherCard } from "@/components/generative/weather-card";
 import type { UIMessage } from "@/lib/ai/types";
-import { fetchMcpResource } from "@/lib/mcp/client";
+import { resolveSimulation } from "@/lib/generative/resolve-simulation";
+
+function createId() {
+  return crypto.randomUUID();
+}
 
 /**
- * Fallback local sem API key.
- * Replica a intenção das tools para demos/dev sem provedor LLM.
+ * Fallback local sem API key — delega ao registry (mesmos componentes do streamUI).
  */
 export async function routeDemoMessage(content: string): Promise<UIMessage> {
-  const normalized = content.toLowerCase();
-  const id = generateId();
+  const matched = await resolveSimulation(content);
 
-  if (
-    /venda|vendas|comparativ|gr[aá]fico|m[eé]trica|dashboard|ranking/.test(
-      normalized,
-    )
-  ) {
-    const period = /trimestre|quart/.test(normalized)
-      ? "trimestre"
-      : /mensal|m[eê]s/.test(normalized)
-        ? "mensal"
-        : undefined;
-    const data = await fetchMcpResource({ kind: "sales", period });
-
+  if (matched) {
     return {
-      id,
+      id: createId(),
       role: "assistant",
       display: (
         <div className="space-y-3">
           <p className="text-sm text-muted-foreground">
-            Modo demo (sem API key) · tool simulada{" "}
-            <code className="font-mono text-xs">showBarChart</code>
+            Modo demo (sem API key) · tool{" "}
+            <code className="font-mono text-xs">{matched.toolId}</code>
           </p>
-          <BarChart
-            title={data.title}
-            labels={data.labels}
-            values={data.values}
-          />
-        </div>
-      ),
-    };
-  }
-
-  if (/clima|tempo|temperatura|weather/.test(normalized)) {
-    const cityMatch = content.match(
-      /(?:em|de|para)\s+([A-Za-zÀ-ÿ\s]+?)(?:\?|$)/i,
-    );
-    const city = cityMatch?.[1]?.trim();
-    const data = await fetchMcpResource({ kind: "weather", city });
-
-    return {
-      id,
-      role: "assistant",
-      display: (
-        <div className="space-y-3">
-          <p className="text-sm text-muted-foreground">
-            Modo demo (sem API key) · tool simulada{" "}
-            <code className="font-mono text-xs">showWeather</code>
-          </p>
-          <WeatherCard
-            city={data.city}
-            temperatureC={data.temperatureC}
-            condition={data.condition}
-          />
+          {matched.display}
         </div>
       ),
     };
   }
 
   return {
-    id,
+    id: createId(),
     role: "assistant",
     display: (
       <div className="space-y-2 text-sm leading-relaxed text-foreground/90">
@@ -79,10 +36,10 @@ export async function routeDemoMessage(content: string): Promise<UIMessage> {
           Estou em <strong>modo demo</strong> (nenhuma API key configurada).
         </p>
         <p className="text-muted-foreground">
-          Experimente: “Mostre o comparativo de vendas” ou “Clima em Curitiba”.
-          Com <code className="font-mono text-xs">OPENAI_API_KEY</code> ou{" "}
-          <code className="font-mono text-xs">ANTHROPIC_API_KEY</code>, o{" "}
-          <code className="font-mono text-xs">streamUI</code> decide a tool.
+          Experimente: “Mostre o comparativo de vendas”, “Tabela de vendas do
+          trimestre” ou “Clima em Curitiba”. Com API key, o{" "}
+          <code className="font-mono text-xs">streamUI</code> escolhe a tool no
+          registry.
         </p>
       </div>
     ),

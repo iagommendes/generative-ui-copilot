@@ -12,6 +12,13 @@ export type WeatherSnapshot = {
   source: string;
 };
 
+export type SalesTable = {
+  title: string;
+  columns: string[];
+  rows: Array<Array<string | number>>;
+  source: string;
+};
+
 /** Datasets mock — substituídos por servers MCP reais no roadmap. */
 const SALES_BY_PERIOD: Record<string, SalesComparison> = {
   trimestre: {
@@ -77,5 +84,15 @@ export function getWeatherSnapshot(city?: string): WeatherSnapshot {
   return WEATHER_BY_CITY[key] ?? {
     ...WEATHER_BY_CITY.default,
     city: city?.trim() || WEATHER_BY_CITY.default.city,
+  };
+}
+
+export function getSalesTable(period?: string): SalesTable {
+  const sales = getSalesComparison(period);
+  return {
+    title: `${sales.title} (tabela)`,
+    columns: ["Dimensão", "Valor"],
+    rows: sales.labels.map((label, index) => [label, sales.values[index] ?? 0]),
+    source: sales.source.replace("sales", "sales-table"),
   };
 }
