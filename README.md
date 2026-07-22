@@ -19,22 +19,24 @@ Motor de **Generative UI** para agentes de IA: intercepta a intenção do modelo
 
 ```text
 src/
-├── app/                      # Rotas Next.js (RSC)
-│   ├── layout.tsx            # Root layout + <AI> provider
-│   ├── page.tsx              # Entrada do chat
-│   └── globals.css
+├── app/                         # Rotas Next.js (RSC)
 ├── components/
-│   ├── chat/                 # Shell, input, messages, provider
-│   ├── generative/           # Componentes invocáveis pelo modelo
-│   └── ui/                   # Primitivos Shadcn
+│   ├── chat/                    # Shell, input, messages, provider
+│   ├── generative/              # BarChart, WeatherCard, loading
+│   └── ui/                      # Shadcn
+├── hooks/
+│   └── use-submit-message.tsx   # Envio tipado + optimistic UI
 ├── lib/
 │   ├── ai/
-│   │   ├── actions.tsx       # createAI + submitUserMessage
-│   │   └── types.ts          # AIState / UIState
-│   ├── mcp/
-│   │   └── client.ts         # Stub MCP
-│   └── utils.ts
-└── hooks/
+│   │   ├── actions.tsx          # createAI + streamUI
+│   │   ├── tools.tsx            # Tools generativas tipadas
+│   │   ├── demo-router.tsx      # Fallback sem API key
+│   │   ├── model.ts             # Resolve OpenAI / Anthropic
+│   │   ├── prompts.ts
+│   │   └── types.ts
+│   └── mcp/                     # Resources mock + client tipado
+docs/
+└── ROADMAP.md                   # Próximas etapas
 ```
 
 ## Setup
@@ -68,9 +70,15 @@ npx shadcn@latest add button input textarea scroll-area separator avatar card -y
 
 - [x] Scaffold Next.js + Tailwind + Shadcn
 - [x] Provider `createAI` + layout do chat
-- [x] Placeholders `BarChart` / `WeatherCard` + stub MCP
-- [ ] Conectar `streamUI` + tools tipadas ao modelo
-- [ ] Cliente MCP real para dados de vendas / clima
+- [x] `streamUI` + tools tipadas (`showBarChart`, `showWeather`)
+- [x] Componentes generativos + MCP mock tipado
+- [x] Modo demo sem API key
+- [ ] Cliente MCP real (ver [docs/ROADMAP.md](docs/ROADMAP.md))
+- [ ] Registry genérico de componentes / persistência de sessões
+
+## Roadmap
+
+Próximas etapas (registry, MCP real, persistência, produção): **[docs/ROADMAP.md](docs/ROADMAP.md)**
 
 ## Scripts
 
@@ -79,3 +87,12 @@ npx shadcn@latest add button input textarea scroll-area separator avatar card -y
 | `npm run dev` | Servidor de desenvolvimento |
 | `npm run build` | Build de produção |
 | `npm run lint` | ESLint |
+
+## Experimentar
+
+Sem API key (modo demo):
+
+1. `npm run dev`
+2. Clique em **Mostre o comparativo de vendas** ou digite **Clima em Curitiba**
+
+Com modelo real: preencha `OPENAI_API_KEY` ou `ANTHROPIC_API_KEY` em `.env.local`.

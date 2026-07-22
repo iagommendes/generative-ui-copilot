@@ -1,24 +1,36 @@
 /**
- * Stub do cliente MCP.
+ * Camada MCP: I/O de fontes externas isolada do shell de chat.
  *
- * Por quê pasta dedicada?
- * - Isola I/O de fontes externas (CRM, analytics, weather APIs) do shell de chat
- * - Tools do streamUI vão chamar daqui, mantendo os componentes generativos burros
- *   (só recebem props tipadas e renderizam)
- *
- * Próximo passo: conectar @modelcontextprotocol/sdk a um ou mais servers.
+ * Hoje serve recursos mock tipados. No roadmap, troca o backend por
+ * @modelcontextprotocol/sdk conectado a servers reais.
  */
 
-export type McpResourceRef = {
-  serverId: string;
-  uri: string;
-};
+import {
+  getSalesComparison,
+  getWeatherSnapshot,
+  type SalesComparison,
+  type WeatherSnapshot,
+} from "@/lib/mcp/resources";
+
+export type McpResourceRef =
+  | { kind: "sales"; period?: string }
+  | { kind: "weather"; city?: string };
 
 export async function fetchMcpResource(
+  ref: Extract<McpResourceRef, { kind: "sales" }>,
+): Promise<SalesComparison>;
+export async function fetchMcpResource(
+  ref: Extract<McpResourceRef, { kind: "weather" }>,
+): Promise<WeatherSnapshot>;
+export async function fetchMcpResource(
   ref: McpResourceRef,
-): Promise<unknown> {
-  void ref;
-  throw new Error(
-    "MCP client ainda não configurado. Implemente em src/lib/mcp/client.ts",
-  );
+): Promise<SalesComparison | WeatherSnapshot> {
+  // Simula latência de um server MCP remoto.
+  await new Promise((resolve) => setTimeout(resolve, 280));
+
+  if (ref.kind === "sales") {
+    return getSalesComparison(ref.period);
+  }
+
+  return getWeatherSnapshot(ref.city);
 }

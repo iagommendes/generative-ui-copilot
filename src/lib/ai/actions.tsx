@@ -1,24 +1,41 @@
 "use server";
 
-import { generateId } from "ai";
 import {
   createAI,
   getMutableAIState,
-  // streamUI — plugado na próxima iteração com tools + componentes generativos
+  streamUI,
 } from "@ai-sdk/rsc";
+import { generateId } from "ai";
 
-import type { AIState, UIMessage, UIState } from "@/lib/ai/types";
+import { GenerativeLoading } from "@/components/generative/loading";
+import { routeDemoMessage } from "@/lib/ai/demo-router";
+import { resolveLanguageModel } from "@/lib/ai/model";
+import { SYSTEM_PROMPT } from "@/lib/ai/prompts";
+import { generativeTools } from "@/lib/ai/tools";
+import type { AIMessage, AIState, UIMessage, UIState } from "@/lib/ai/types";
+
+function toModelMessages(history: AIState) {
+  return history
+    .filter(
+      (message): message is AIMessage & { role: "user" | "assistant" | "system" } =>
+        message.role === "user" ||
+        message.role === "assistant" ||
+        message.role === "system",
+    )
+    .map((message) => ({
+      role: message.role,
+      content: message.content,
+    }));
+}
 
 /**
- * Server Action invocada pelo chat.
+ * Server Action do chat.
  *
- * Por quê Server Action + createAI (em vez de Route Handler puro)?
- * - Tipagem ponta a ponta entre cliente e servidor
- * - Compatível com streamUI / RSC do AI SDK
- * - UIState e AIState sincronizados pelo provider
- *
- * Nesta base, ainda não chamamos o modelo: retornamos um placeholder tipado
- * para validar o provider/layout. O próximo passo substitui o corpo por streamUI.
+ * Fluxo:
+ * 1. Atualiza AIState com a mensagem do usuário
+ * 2. Se houver API key → streamUI + tools tipadas
+ * 3. Senão → demo-router local (mesmos componentes)
+ * 4. Finaliza AIState e devolve UIMessage com ReactNode streaming
  */
 export async function submitUserMessage(
   content: string,
@@ -37,46 +54,80 @@ export async function submitUserMessage(
     { id: userMessageId, role: "user", content: trimmed },
   ]);
 
-  // TODO(mvp): trocar por streamUI({ model, messages, tools: { showBarChart, ... }})
-  const assistantDisplay = (
-    <div className="space-y-1 text-sm leading-relaxed text-foreground/90">
-      <p>
-        Recebi: <span className="font-medium text-foreground">“{trimmed}”</span>
-      </p>
-      <p className="text-muted-foreground">
-        O motor Generative UI ainda não está conectado ao modelo. Na próxima
-        etapa, <code className="font-mono text-xs">streamUI</code> vai decidir
-        entre componentes como{" "}
-        <code className="font-mono text-xs">&lt;BarChart /&gt;</code> e{" "}
-        <code className="font-mono text-xs">&lt;WeatherCard /&gt;</code>.
-      </p>
-    </div>
-  );
+  const { model, provider } = resolveLanguageModel();
 
-  aiState.done([
-    ...aiState.get(),
-    {
+  if (!model) {
+    const demo = await routeDemoMessage(trimmed);
+    aiState.done([
+      ...aiState.get(),
+      {
+        id: demo.id,
+        role: "assistant",
+        content: `[demo:${provider}] resposta generativa local`,
+      },
+    ]);
+    return demo;
+  }
+
+  try {
+    const result = await streamUI({
+      model,
+      system: SYSTEM_PROMPT,
+      messages: toModelMessages(aiState.get()),
+      initial: <GenerativeLoading label="Gerando interface…" />,
+      text: ({ content }) => (
+        <p className="whitespace-pre-wrap text-sm leading-relaxed text-foreground/90">
+          {content}
+        </p>
+      ),
+      tools: generativeTools,
+      onFinish: ({ finishReason }) => {
+        aiState.done([
+          ...aiState.get(),
+          {
+            id: assistantMessageId,
+            role: "assistant",
+            content: `[${provider}] finish=${finishReason}`,
+          },
+        ]);
+      },
+    });
+
+    return {
       id: assistantMessageId,
       role: "assistant",
-      content:
-        "Placeholder: conecte streamUI + tools para renderizar UI dinâmica.",
-    },
-  ]);
+      display: result.value,
+    };
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Falha ao gerar UI.";
 
-  return {
-    id: assistantMessageId,
-    role: "assistant",
-    display: assistantDisplay,
-  };
+    aiState.done([
+      ...aiState.get(),
+      {
+        id: assistantMessageId,
+        role: "assistant",
+        content: `error: ${message}`,
+      },
+    ]);
+
+    return {
+      id: assistantMessageId,
+      role: "assistant",
+      display: (
+        <div className="space-y-2 text-sm">
+          <p className="text-destructive">Não consegui gerar a UI.</p>
+          <p className="text-muted-foreground">{message}</p>
+          <p className="text-muted-foreground">
+            Verifique a API key ou use o modo demo removendo as variáveis de
+            ambiente.
+          </p>
+        </div>
+      ),
+    };
+  }
 }
 
-/**
- * Provider RSC: ponto único de verdade para AIState, UIState e actions.
- * O layout da app envolve a árvore com <AI> para expor useUIState / useActions.
- *
- * Actions é inferido via `typeof actions` (3º genérico) — sem isso, useActions
- * cai em `{}` e perde tipagem das Server Actions.
- */
 const actions = {
   submitUserMessage,
 };
